@@ -22,6 +22,13 @@ Unicode::Emoji::KDDI - Emoji for au by KDDI
     print "cp932_string: ",   $ke->cp932_string, "\n";
     print "cp932_octets: ",   $ke->cp932_octets, "\n";
 
+    my $kwe = $e->kddiweb_emoji;
+    print "is_alt: ",         $kwe->is_alt, "\n";
+    print "unicode_string: ", $kwe->unicode_string, "\n";
+    print "unicode_octets: ", $kwe->unicode_octets, "\n";
+    print "cp932_string: ",   $kwe->cp932_string, "\n";
+    print "cp932_octets: ",   $kwe->cp932_octets, "\n";
+
 =head1 DEFINITION
 
 L<http://emoji4unicode.googlecode.com/svn/trunk/data/kddi/carrier_data.xml>
@@ -44,9 +51,8 @@ package Unicode::Emoji::KDDI;
 use Unicode::Emoji::Base;
 use Any::Moose;
 extends 'Unicode::Emoji::Base::File::Carrier';
-has dataxml => (is => 'rw', isa => 'Str', lazy_build => 1);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub _dataxml { 'kddi/carrier_data.xml'; }
 
@@ -59,9 +65,11 @@ use Any::Moose;
 has name_ja => (is => 'ro', isa => 'Str');
 has number  => (is => 'ro', isa => 'Str');
 has unicode => (is => 'ro', isa => 'Str');
-has kddi_emoji   => (is => 'ro', isa => 'Unicode::Emoji::Base::Emoji', lazy_build => 1);
+has kddi_emoji    => (is => 'ro', isa => 'Unicode::Emoji::KDDI::Emoji', lazy_build => 1);
+has kddiweb_emoji => (is => 'ro', isa => 'Unicode::Emoji::KDDIweb::Emoji', lazy_build => 1);
 
 sub _build_kddi_emoji { Unicode::Emoji::KDDI::Emoji->new(unicode_hex => $_[0]->unicode) };
+sub _build_kddiweb_emoji { Unicode::Emoji::KDDIweb::Emoji->fromKDDI($_[0]->kddi_emoji) };
 
 package Unicode::Emoji::KDDI::Emoji;
 use Any::Moose;
@@ -103,6 +111,27 @@ sub _unicode_to_cp932 {
         return;
     }
     $sjis
+}
+
+package Unicode::Emoji::KDDIweb::Emoji;
+use Carp;
+use Any::Moose;
+extends 'Unicode::Emoji::Base::Emoji::CP932';
+
+sub fromKDDI {
+    my $class = shift;
+    my $kddi  = shift;
+#   my $hex = sprintf('%04X' => unpack(n => $kddi->cp932_octets) - 1792);
+    my $hex = join '+' => map {sprintf '%04X' => $_-1792} unpack 'n*' => $kddi->cp932_octets;
+    $hex = '>'.$hex if $kddi->is_alt;
+    $class->new(unicode_hex => $hex);
+};
+
+sub _unicode_to_cp932 {
+    my $self = shift;
+    my $code = shift;
+    my $sjis = $code + 1792;
+    $sjis;
 }
 
 __PACKAGE__->meta->make_immutable;
